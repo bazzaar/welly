@@ -23,16 +23,22 @@ from .plot import plot_kdes_project, plot_map_project
 
 def _load_well_from_las(filepath, remap=None, funcs=None, data=True, req=None, alias=None, encoding=None, printfname=None, index=None, **kwargs):
     """Helper function for concurrent well loading."""
-    return Well.from_las(filepath,
-                        remap=remap,
-                        funcs=funcs,
-                        data=data,
-                        req=req,
-                        alias=alias,
-                        encoding=encoding,
-                        printfname=printfname,
-                        index=index,
-                        **kwargs)
+    try:
+        # Handle URLs directly in the subprocess to avoid file handle issues
+        # when passing file objects between processes
+        return Well.from_las(filepath,
+                            remap=remap,
+                            funcs=funcs,
+                            data=data,
+                            req=req,
+                            alias=alias,
+                            encoding=encoding,
+                            printfname=printfname,
+                            index=index,
+                            **kwargs)
+    except Exception as e:
+        print(f"Error loading well {filepath}: {e}")
+        return None
 
 
 class Project(object):
