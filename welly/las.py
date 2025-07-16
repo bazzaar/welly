@@ -482,11 +482,11 @@ def file_from_url(url):
         text_file (StringIO): an in-memory stream for text.
     """
     try:
-        text_file = StringIO(request.urlopen(url).read().decode())
+        with request.urlopen(url) as response:
+            content = response.read().decode()
+        return content  # Return the content directly instead of wrapping in StringIO
     except error.HTTPError as e:
-        raise Exception('Could not retrieve url: ', e)
-
-    return text_file
+        raise Exception(f'Could not retrieve url: {url} - {e}')
 
 
 def get_las_version(las):

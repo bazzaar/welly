@@ -71,3 +71,7 @@ csv-plugin.xml
 
 # temporary test folder
 tests/temp
+
+# UV related files
+uv.lock
+.python-version

@@ -298,11 +298,15 @@ class Well(object):
         if printfname:
             print(fname)
 
-        # If https URL is passed try reading and formatting it to text file.
-        if re.match(r'https?://.+\..+/.+?', fname) is not None:
-            fname = file_from_url(fname)
-
-        datasets = from_las(fname, encoding=encoding, **kwargs)
+        # If https URL is passed, download the content
+        is_url = re.match(r'https?://.+\..+/.+?', fname) is not None
+        if is_url:
+            content = file_from_url(fname)
+            # Pass the content string directly to from_las
+            datasets = from_las(content, encoding=encoding, **kwargs)
+        else:
+            # Regular file path
+            datasets = from_las(fname, encoding=encoding, **kwargs)
 
         # Create well from datasets.
         well = cls.from_datasets(datasets,

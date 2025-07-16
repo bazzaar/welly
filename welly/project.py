@@ -21,6 +21,26 @@ from .utils import deprecated
 from .plot import plot_kdes_project, plot_map_project
 
 
+def _load_well_from_las(filepath, remap=None, funcs=None, data=True, req=None, alias=None, encoding=None, printfname=None, index=None, **kwargs):
+    """Helper function for concurrent well loading."""
+    try:
+        # Handle URLs directly in the subprocess to avoid file handle issues
+        # when passing file objects between processes
+        return Well.from_las(filepath,
+                            remap=remap,
+                            funcs=funcs,
+                            data=data,
+                            req=req,
+                            alias=alias,
+                            encoding=encoding,
+                            printfname=printfname,
+                            index=index,
+                            **kwargs)
+    except Exception as e:
+        print(f"Error loading well {filepath}: {e}")
+        return None
+
+
 class Project(object):
     """
     Just a list of Well objects.
@@ -163,6 +183,9 @@ class Project(object):
         Returns:
             project. The project object.
         """
+        import concurrent.futures
+        from tqdm import tqdm
+        
         if max is None:
             max = 1e12
         if (req is not None) and (alias is None):
@@ -180,20 +203,24 @@ class Project(object):
         else:
             uris = path  # It's a list-like of files and/or URLs.
 
-        wells = [Well.from_las(f,
-                               remap=remap,
-                               funcs=funcs,
-                               data=data,
-                               req=req,
-                               alias=alias,
-                               encoding=encoding,
-                               printfname=printfname,
-                               index=index,
-                               **kwargs,
-                               )
-                 for i, f in tqdm(enumerate(uris)) if i < max]
-
-        return cls(list(filter(None, wells)))
+        # Limit to the maximum number of wells requested
+        uris = [f for i, f in enumerate(uris) if i < max]
+        
+        wells = []
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            # Submit all tasks and create a mapping of futures to original indices
+            future_to_idx = {executor.submit(_load_well_from_las, uri, remap=remap, funcs=funcs, data=data, req=req, alias=alias, encoding=encoding, printfname=printfname, index=index, **kwargs): i for i, uri in enumerate(uris)}
+            
+            # Use tqdm to show a progress bar
+            for future in tqdm(concurrent.futures.as_completed(future_to_idx), total=len(uris), desc="Loading wells"):
+                try:
+                    well = future.result()
+                    if well is not None:
+                        wells.append(well)
+                except Exception as e:
+                    print(f"Error loading well: {e}")
+        
+        return cls(wells, source=path)
 
     def add_canstrat_striplogs(self, path, uwi_transform=None, name='canstrat'):
         """
