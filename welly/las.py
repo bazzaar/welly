@@ -267,7 +267,7 @@ def datasets_to_las(path, datasets, **kwargs):
     for dataset_name, df in datasets.items():
 
         # dataset is the header
-        if (dataset_name == 'Header'):
+        if dataset_name == 'Header':
             # parse header pd.DataFrame to LASFile
             for section_name in set(df.section.values):
                 # get header section df
